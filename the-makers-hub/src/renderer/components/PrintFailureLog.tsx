@@ -55,11 +55,21 @@ const PrintFailureLog = () => {
     }
   };
 
-  const handleSubmit = (log: Omit<PrintFailureLogModel, 'id'>) => {
+  const handleSubmit = (log: {
+    title: string;
+    dateOfFailure: Date;
+    photos: string[];
+    gcodeFile: string;
+    stlFile: string;
+    suspectedCauseAndNotes: string;
+    slicerSettings: Record<string, string>;
+    PrinterId: number;
+    FilamentId: number;
+  }) => {
     if (selectedLog) {
-      handleUpdate(log);
+      handleUpdate(log as any);
     } else {
-      handleAdd(log);
+      handleAdd(log as any);
     }
   };
 

@@ -5,7 +5,17 @@ interface Props {
   log?: PrintFailureLog;
   printers: Printer[];
   filaments: FilamentSpool[];
-  onSubmit: (log: Omit<PrintFailureLog, 'id'>) => void;
+  onSubmit: (log: {
+    title: string;
+    dateOfFailure: Date;
+    photos: string[];
+    gcodeFile: string;
+    stlFile: string;
+    suspectedCauseAndNotes: string;
+    slicerSettings: Record<string, string>;
+    PrinterId: number;
+    FilamentId: number;
+  }) => void;
 }
 
 const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit }) => {
@@ -23,8 +33,6 @@ const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit 
     if (log) {
       setTitle(log.title);
       setDateOfFailure(log.dateOfFailure);
-      setPrinterId(log.Printer?.id || null);
-      setFilamentId(log.FilamentSpool?.id || null);
       setPhotos(log.photos || []);
       setGcodeFile(log.gcodeFile || null);
       setStlFile(log.stlFile || null);
@@ -43,13 +51,13 @@ const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit 
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (path: string) => void) => {
     if (e.target.files && e.target.files.length > 0) {
-      setter(e.target.files[0].path);
+      setter(e.target.files[0].name);
     }
   };
 
   const handleMultipleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (paths: string[]) => void) => {
     if (e.target.files) {
-      const paths = Array.from(e.target.files).map((file) => file.path);
+      const paths = Array.from(e.target.files).map((file) => file.name);
       setter(paths);
     }
   };

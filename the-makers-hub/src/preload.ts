@@ -37,4 +37,24 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('failure-logs:delete', id),
   searchFailureLogs: (query: string): Promise<PrintFailureLog[]> =>
     ipcRenderer.invoke('failure-logs:search', query),
+
+  getSettings: (): Promise<{ electricityCost?: string; printerPower?: string }> =>
+    ipcRenderer.invoke('settings:get'),
+  setSettings: (settings: { electricityCost: string; printerPower: string }): Promise<void> =>
+    ipcRenderer.invoke('settings:set', settings),
+
+  generateCalibrationGCode: (options: {
+    testModel: string;
+    slicerSetting: string;
+    startValue: string;
+    endValue: string;
+    stepValue: string;
+  }): Promise<string> => ipcRenderer.invoke('gcode:generate-calibration', options),
+
+  login: (): Promise<{ name: string }> => ipcRenderer.invoke('user:login'),
+  logout: (): Promise<null> => ipcRenderer.invoke('user:logout'),
+
+  getCommunityProfiles: (): Promise<any[]> => ipcRenderer.invoke('community-profiles:get'),
+  addCommunityProfile: (profile: any): Promise<any> => ipcRenderer.invoke('community-profiles:add', profile),
+  rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }): Promise<any> => ipcRenderer.invoke('community-profiles:rate', options),
 });

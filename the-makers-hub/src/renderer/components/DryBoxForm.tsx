@@ -3,7 +3,7 @@ import { DryBox } from '../../db/models';
 
 interface Props {
   dryBox?: DryBox;
-  onSubmit: (dryBox: Omit<DryBox, 'id' | 'lastRecharged'>) => void;
+  onSubmit: (dryBox: { name: string }) => void;
 }
 
 const DryBoxForm: React.FC<Props> = ({ dryBox, onSubmit }) => {

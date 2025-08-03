@@ -22,6 +22,21 @@ export interface IElectronAPI {
   updateFailureLog: (log: PrintFailureLog) => Promise<void>;
   deleteFailureLog: (id: number) => Promise<void>;
   searchFailureLogs: (query: string) => Promise<PrintFailureLog[]>;
+
+  getSettings: () => Promise<{ electricityCost?: string; printerPower?: string }>;
+  setSettings: (settings: { electricityCost: string; printerPower: string }) => Promise<void>;
+  generateCalibrationGCode: (options: {
+    testModel: string;
+    slicerSetting: string;
+    startValue: string;
+    endValue: string;
+    stepValue: string;
+  }) => Promise<string>;
+  login: () => Promise<{ name: string }>;
+  logout: () => Promise<null>;
+  getCommunityProfiles: () => Promise<any[]>;
+  addCommunityProfile: (profile: any) => Promise<any>;
+  rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }) => Promise<any>;
 }
 
 declare global {

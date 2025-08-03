@@ -1,0 +1,7 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=The Maker's Hub
+Exec=/Users/lukefryer/themakershub/run-app.sh
+Icon=/Users/lukefryer/themakershub/the-makers-hub/src/icon.png
+Terminal=false

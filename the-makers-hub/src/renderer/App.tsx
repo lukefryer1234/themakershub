@@ -1,62 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { FilamentSpool } from '../db/models';
-import FilamentList from './components/FilamentList';
-import FilamentForm from './components/FilamentForm';
+import React, { useState } from 'react';
+import FilamentManager from './components/FilamentManager';
 import DesiccantTracker from './components/DesiccantTracker';
 import PrinterManager from './components/PrinterManager';
 import PrintFailureLog from './components/PrintFailureLog';
+import Settings from './components/Settings';
+import Shop from './components/Shop';
 
 const App = () => {
-  const [filaments, setFilaments] = useState<FilamentSpool[]>([]);
-  const [selectedFilament, setSelectedFilament] = useState<FilamentSpool | undefined>(undefined);
+  const [activeTab, setActiveTab] = useState('filaments');
 
-  const fetchFilaments = () => {
-    window.electron.getFilaments().then(setFilaments);
-  };
-
-  useEffect(() => {
-    fetchFilaments();
-  }, []);
-
-  const handleAdd = async (filament: Omit<FilamentSpool, 'id'>) => {
-    await window.electron.addFilament(filament);
-    fetchFilaments();
-  };
-
-  const handleUpdate = async (filament: FilamentSpool) => {
-    await window.electron.updateFilament(filament);
-    setSelectedFilament(undefined);
-    fetchFilaments();
-  };
-
-  const handleDelete = async (id: number) => {
-    await window.electron.deleteFilament(id);
-    fetchFilaments();
-  };
-
-  const handleSubmit = (filament: Omit<FilamentSpool, 'id'>) => {
-    if (selectedFilament) {
-      handleUpdate({ ...filament, id: selectedFilament.id });
-    } else {
-      handleAdd(filament);
+  const renderTab = () => {
+    switch (activeTab) {
+      case 'filaments':
+        return <FilamentManager />;
+      case 'desiccant':
+        return <DesiccantTracker />;
+      case 'printers':
+        return <PrinterManager />;
+      case 'failures':
+        return <PrintFailureLog />;
+      case 'shop':
+        return <Shop />;
+      case 'settings':
+        return <Settings />;
+      default:
+        return <FilamentManager />;
     }
   };
 
   return (
-    <div>
-      <h1>Filament Inventory</h1>
-      <FilamentForm onSubmit={handleSubmit} filament={selectedFilament} />
-      <FilamentList
-        filaments={filaments}
-        onEdit={setSelectedFilament}
-        onDelete={handleDelete}
-      />
-      <hr />
-      <DesiccantTracker />
-      <hr />
-      <PrinterManager />
-      <hr />
-      <PrintFailureLog />
+    <div className="app-container">
+      <div className="tabs">
+        <button onClick={() => setActiveTab('filaments')} className={activeTab === 'filaments' ? 'active' : ''}>Filament Inventory</button>
+        <button onClick={() => setActiveTab('desiccant')} className={activeTab === 'desiccant' ? 'active' : ''}>Desiccant Tracker</button>
+        <button onClick={() => setActiveTab('printers')} className={activeTab === 'printers' ? 'active' : ''}>Printer Manager</button>
+        <button onClick={() => setActiveTab('failures')} className={activeTab === 'failures' ? 'active' : ''}>Failure Log</button>
+        <button onClick={() => setActiveTab('shop')} className={activeTab === 'shop' ? 'active' : ''}>Shop</button>
+        <button onClick={() => setActiveTab('settings')} className={activeTab === 'settings' ? 'active' : ''}>Settings</button>
+      </div>
+      <div className="tab-content">
+        {renderTab()}
+      </div>
     </div>
   );
 };

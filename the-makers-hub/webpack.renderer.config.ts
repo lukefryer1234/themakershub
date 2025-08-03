@@ -15,5 +15,10 @@ export const rendererConfig: Configuration = {
   plugins,
   resolve: {
     extensions: ['.js', '.ts', '.jsx', '.tsx', '.css'],
+    fallback: {
+      fs: false,
+      timers: require.resolve('timers-browserify'),
+      stream: require.resolve('stream-browserify'),
+    },
   },
 };

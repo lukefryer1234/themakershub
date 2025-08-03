@@ -67,7 +67,7 @@ DryBox.init(
     id: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
-      primaryKey: true,.
+      primaryKey: true
     },
     name: {
       type: DataTypes.STRING,
@@ -123,6 +123,8 @@ export class PrintFailureLog extends Model {
   public stlFile!: string;
   public suspectedCauseAndNotes!: string;
   public slicerSettings!: Record<string, string>;
+  public Printer?: Printer;
+  public FilamentSpool?: FilamentSpool;
 }
 
 PrintFailureLog.init(

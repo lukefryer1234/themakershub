@@ -3,7 +3,7 @@ import { Printer } from '../../db/models';
 
 interface Props {
   printer?: Printer;
-  onSubmit: (printer: Omit<Printer, 'id'>) => void;
+  onSubmit: (printer: { name: string; model: string }) => void;
 }
 
 const PrinterForm: React.FC<Props> = ({ printer, onSubmit }) => {
