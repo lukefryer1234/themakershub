@@ -11,6 +11,7 @@ export class FilamentSpool extends Model {
   public purchasePrice!: number;
   public purchaseDate!: Date;
   public remainingWeight!: number;
+  public density!: number;
 }
 
 FilamentSpool.init(
@@ -47,6 +48,11 @@ FilamentSpool.init(
     remainingWeight: {
       type: DataTypes.INTEGER,
       allowNull: false,
+    },
+    density: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 1.24, // Default to PLA density
     },
   },
   {

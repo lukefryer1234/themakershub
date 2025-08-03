@@ -12,6 +12,7 @@ interface Props {
     purchasePrice: number;
     purchaseDate: Date;
     remainingWeight: number;
+    density: number;
   }) => void;
 }
 
@@ -24,6 +25,7 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
   const [purchasePrice, setPurchasePrice] = useState(0);
   const [purchaseDate, setPurchaseDate] = useState(new Date());
   const [remainingWeight, setRemainingWeight] = useState(1000);
+  const [density, setDensity] = useState(1.24);
 
   useEffect(() => {
     if (filament) {
@@ -34,6 +36,7 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
       setPurchasePrice(filament.purchasePrice);
       setPurchaseDate(filament.purchaseDate);
       setRemainingWeight(filament.remainingWeight);
+      setDensity(filament.density);
     }
   }, [filament]);
 
@@ -47,6 +50,7 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
       purchasePrice,
       purchaseDate,
       remainingWeight,
+      density,
     });
   };
 
@@ -61,6 +65,7 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
         setPurchasePrice(scannedData.purchasePrice || 0);
         setPurchaseDate(new Date(scannedData.purchaseDate) || new Date());
         setRemainingWeight(scannedData.remainingWeight || 1000);
+        setDensity(scannedData.density || 1.24);
       } catch (error) {
         console.error('Failed to parse QR code data:', error);
       }
@@ -122,6 +127,13 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
           placeholder="Purchase Date"
           value={purchaseDate.toISOString().split('T')[0]}
           onChange={(e) => setPurchaseDate(new Date(e.target.value))}
+          required
+        />
+        <input
+          type="number"
+          placeholder="Density (g/cm³)"
+          value={density}
+          onChange={(e) => setDensity(parseFloat(e.target.value))}
           required
         />
         <button type="submit">{filament ? 'Update' : 'Add'} Filament</button>

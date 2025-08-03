@@ -9,6 +9,7 @@ const GCodeAnalyzer = () => {
   const [settings, setSettings] = useState<{ electricityCost?: string; printerPower?: string }>({});
   const [filaments, setFilaments] = useState([]);
   const [selectedFilamentId, setSelectedFilamentId] = useState<number | null>(null);
+  const [currentLayer, setCurrentLayer] = useState(0);
 
   useEffect(() => {
     window.electron.getSettings().then(setSettings);
@@ -30,25 +31,30 @@ const GCodeAnalyzer = () => {
     if (!gcode) return null;
     const parsed = parse(gcode);
     const filamentUsedMm = parsed.layers.reduce((total: number, layer: any) => total + layer.extrusion, 0);
-    const filamentUsedGrams = filamentUsedMm * 0.0028; // Approximate for PLA
-    const printTimeHours = parsed.metadata.printTime / 3600;
     const selectedFilament = filaments.find((f: any) => f.id === selectedFilamentId);
+    const filamentUsedGrams = selectedFilament ? (filamentUsedMm * selectedFilament.density) / 1000 : 0;
+    const printTimeHours = parsed.metadata.printTime / 3600;
     const materialCost = selectedFilament ? (filamentUsedGrams / selectedFilament.spoolWeight) * selectedFilament.purchasePrice : 0;
     const electricityCost = settings.electricityCost && settings.printerPower ? (printTimeHours * (parseInt(settings.printerPower) / 1000)) * parseFloat(settings.electricityCost) : 0;
     const totalCost = materialCost + electricityCost;
 
-    const points: THREE.Vector3[] = [];
+    const travelPoints: THREE.Vector3[] = [];
+    const extrusionPoints: THREE.Vector3[] = [];
     let lastPosition = new THREE.Vector3();
-    parsed.layers.forEach((layer: any) => {
+    parsed.layers.slice(0, currentLayer).forEach((layer: any) => {
       layer.lines.forEach((line: any) => {
         const newPosition = new THREE.Vector3(line.x, line.y, layer.z);
-        points.push(lastPosition, newPosition);
+        if (line.extrusion) {
+          extrusionPoints.push(lastPosition, newPosition);
+        } else {
+          travelPoints.push(lastPosition, newPosition);
+        }
         lastPosition = newPosition;
       });
     });
 
-    return { filamentUsedMm, filamentUsedGrams, printTimeHours, materialCost, electricityCost, totalCost, points };
-  }, [gcode, settings, filaments, selectedFilamentId]);
+    return { filamentUsedMm, filamentUsedGrams, printTimeHours, materialCost, electricityCost, totalCost, travelPoints, extrusionPoints, totalLayers: parsed.layers.length };
+  }, [gcode, settings, filaments, selectedFilamentId, currentLayer]);
 
   return (
     <div>
@@ -60,6 +66,14 @@ const GCodeAnalyzer = () => {
       </select>
       {analysis && (
         <div>
+          <input
+            type="range"
+            min="0"
+            max={analysis.totalLayers}
+            value={currentLayer}
+            onChange={(e) => setCurrentLayer(parseInt(e.target.value))}
+          />
+          <p>Layer: {currentLayer} / {analysis.totalLayers}</p>
           <h3>Analysis Results</h3>
           <p>Filament Used: {analysis.filamentUsedMm.toFixed(2)} mm ({analysis.filamentUsedGrams.toFixed(2)} g)</p>
           <p>Estimated Print Time: {analysis.printTimeHours.toFixed(2)} hours</p>
@@ -69,7 +83,8 @@ const GCodeAnalyzer = () => {
           <Canvas style={{ height: '500px' }}>
             <ambientLight />
             <pointLight position={[10, 10, 10]} />
-            <Line points={analysis.points} color="white" />
+            <Line points={analysis.extrusionPoints} color="blue" />
+            <Line points={analysis.travelPoints} color="red" />
             <OrbitControls />
           </Canvas>
         </div>

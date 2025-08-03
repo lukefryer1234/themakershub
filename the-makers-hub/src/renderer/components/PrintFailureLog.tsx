@@ -2,17 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { PrintFailureLog as PrintFailureLogModel, Printer, FilamentSpool } from '../../db/models';
 import PrintFailureList from './PrintFailureList';
 import PrintFailureForm from './PrintFailureForm';
+import { useCrud } from '../hooks/useCrud';
+
+type PrintFailureLogForm = {
+  title: string;
+  dateOfFailure: Date;
+  photos: string[];
+  gcodeFile: string;
+  stlFile: string;
+  suspectedCauseAndNotes: string;
+  slicerSettings: Record<string, string>;
+  PrinterId: number;
+  FilamentId: number;
+};
 
 const PrintFailureLog = () => {
-  const [logs, setLogs] = useState<PrintFailureLogModel[]>([]);
+  const {
+    items: logs,
+    setItems: setLogs,
+    selectedItem: selectedLog,
+    setSelectedItem: setSelectedLog,
+    handleSubmit,
+    handleDelete,
+  } = useCrud<PrintFailureLogModel>({
+    getAll: window.electron.getFailureLogs,
+    add: window.electron.addFailureLog,
+    update: window.electron.updateFailureLog,
+    delete: window.electron.deleteFailureLog,
+  });
+
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [filaments, setFilaments] = useState<FilamentSpool[]>([]);
-  const [selectedLog, setSelectedLog] = useState<PrintFailureLogModel | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
-
-  const fetchLogs = () => {
-    window.electron.getFailureLogs().then(setLogs);
-  };
 
   const fetchPrinters = () => {
     window.electron.getPrinters().then(setPrinters);
@@ -23,54 +44,21 @@ const PrintFailureLog = () => {
   };
 
   useEffect(() => {
-    fetchLogs();
     fetchPrinters();
     fetchFilaments();
   }, []);
-
-  const handleAdd = async (log: Omit<PrintFailureLogModel, 'id'>) => {
-    await window.electron.addFailureLog(log);
-    fetchLogs();
-  };
-
-  const handleUpdate = async (log: Omit<PrintFailureLogModel, 'id'>) => {
-    if (selectedLog) {
-      await window.electron.updateFailureLog({ ...selectedLog, ...log });
-      setSelectedLog(undefined);
-      fetchLogs();
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    await window.electron.deleteFailureLog(id);
-    fetchLogs();
-  };
 
   const handleSearch = async () => {
     if (searchQuery) {
       const results = await window.electron.searchFailureLogs(searchQuery);
       setLogs(results);
     } else {
-      fetchLogs();
+      // fetchLogs is handled by the useCrud hook
     }
   };
 
-  const handleSubmit = (log: {
-    title: string;
-    dateOfFailure: Date;
-    photos: string[];
-    gcodeFile: string;
-    stlFile: string;
-    suspectedCauseAndNotes: string;
-    slicerSettings: Record<string, string>;
-    PrinterId: number;
-    FilamentId: number;
-  }) => {
-    if (selectedLog) {
-      handleUpdate(log as any);
-    } else {
-      handleAdd(log as any);
-    }
+  const handleFormSubmit = (log: PrintFailureLogForm) => {
+    handleSubmit(log as unknown as Omit<PrintFailureLogModel, 'id'>);
   };
 
   return (
@@ -86,7 +74,7 @@ const PrintFailureLog = () => {
         <button onClick={handleSearch}>Search</button>
       </div>
       <PrintFailureForm
-        onSubmit={handleSubmit}
+        onSubmit={handleFormSubmit}
         log={selectedLog}
         printers={printers}
         filaments={filaments}

@@ -1,43 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { FilamentSpool } from '../../db/models';
 import FilamentList from './FilamentList';
 import FilamentForm from './FilamentForm';
+import { useCrud } from '../hooks/useCrud';
 
 const FilamentManager = () => {
-  const [filaments, setFilaments] = useState<FilamentSpool[]>([]);
-  const [selectedFilament, setSelectedFilament] = useState<FilamentSpool | undefined>(undefined);
-
-  const fetchFilaments = () => {
-    window.electron.getFilaments().then(setFilaments);
-  };
-
-  useEffect(() => {
-    fetchFilaments();
-  }, []);
-
-  const handleAdd = async (filament: Omit<FilamentSpool, 'id'>) => {
-    await window.electron.addFilament(filament);
-    fetchFilaments();
-  };
-
-  const handleUpdate = async (filament: FilamentSpool) => {
-    await window.electron.updateFilament(filament);
-    setSelectedFilament(undefined);
-    fetchFilaments();
-  };
-
-  const handleDelete = async (id: number) => {
-    await window.electron.deleteFilament(id);
-    fetchFilaments();
-  };
-
-  const handleSubmit = (filament: Omit<FilamentSpool, 'id'>) => {
-    if (selectedFilament) {
-      handleUpdate({ ...filament, id: selectedFilament.id });
-    } else {
-      handleAdd(filament);
-    }
-  };
+  const {
+    items: filaments,
+    selectedItem: selectedFilament,
+    setSelectedItem: setSelectedFilament,
+    handleSubmit,
+    handleDelete,
+  } = useCrud<FilamentSpool>({
+    getAll: window.electron.getFilaments,
+    add: window.electron.addFilament,
+    update: window.electron.updateFilament,
+    delete: window.electron.deleteFilament,
+  });
 
   return (
     <div>
