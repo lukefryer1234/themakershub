@@ -16,6 +16,7 @@ const PrintFailureList: React.FC<Props> = ({ logs, onEdit, onDelete }) => {
           <th>Date</th>
           <th>Printer</th>
           <th>Filament</th>
+          <th>Cost</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -26,6 +27,7 @@ const PrintFailureList: React.FC<Props> = ({ logs, onEdit, onDelete }) => {
             <td>{new Date(log.dateOfFailure).toLocaleDateString()}</td>
             <td>{log.Printer?.name}</td>
             <td>{log.FilamentSpool?.manufacturer} {log.FilamentSpool?.materialType}</td>
+            <td>${log.printCost?.toFixed(2)}</td>
             <td>
               <button onClick={() => onEdit(log)}>Edit</button>
               <button onClick={() => onDelete(log.id)}>Delete</button>

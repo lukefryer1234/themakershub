@@ -12,6 +12,7 @@ export class FilamentSpool extends Model {
   public purchaseDate!: Date;
   public remainingWeight!: number;
   public density!: number;
+  public diameter!: number;
 }
 
 FilamentSpool.init(
@@ -53,6 +54,11 @@ FilamentSpool.init(
       type: DataTypes.FLOAT,
       allowNull: false,
       defaultValue: 1.24, // Default to PLA density
+    },
+    diameter: {
+      type: DataTypes.FLOAT,
+      allowNull: false,
+      defaultValue: 1.75,
     },
   },
   {
@@ -129,6 +135,7 @@ export class PrintFailureLog extends Model {
   public stlFile!: string;
   public suspectedCauseAndNotes!: string;
   public slicerSettings!: Record<string, string>;
+  public printCost!: number;
   public Printer?: Printer;
   public FilamentSpool?: FilamentSpool;
 }
@@ -166,6 +173,10 @@ PrintFailureLog.init(
     },
     slicerSettings: {
       type: DataTypes.JSON,
+      allowNull: true,
+    },
+    printCost: {
+      type: DataTypes.FLOAT,
       allowNull: true,
     },
   },

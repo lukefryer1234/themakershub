@@ -51,10 +51,14 @@ contextBridge.exposeInMainWorld('electron', {
     stepValue: string;
   }): Promise<string> => ipcRenderer.invoke('gcode:generate-calibration', options),
 
+  gcodeCalculateFilamentUsage: (options: { filePath: string; filamentId: number }): Promise<number> =>
+    ipcRenderer.invoke('gcode:calculate-filament-usage', options),
+
   login: (): Promise<{ name: string }> => ipcRenderer.invoke('user:login'),
   logout: (): Promise<null> => ipcRenderer.invoke('user:logout'),
 
   getCommunityProfiles: (): Promise<any[]> => ipcRenderer.invoke('community-profiles:get'),
   addCommunityProfile: (profile: any): Promise<any> => ipcRenderer.invoke('community-profiles:add', profile),
   rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }): Promise<any> => ipcRenderer.invoke('community-profiles:rate', options),
+  onError: (callback: (error: string) => void) => ipcRenderer.on('error', (event, error) => callback(error)),
 });

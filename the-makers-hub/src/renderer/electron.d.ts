@@ -23,8 +23,8 @@ export interface IElectronAPI {
   deleteFailureLog: (id: number) => Promise<void>;
   searchFailureLogs: (query: string) => Promise<PrintFailureLog[]>;
 
-  getSettings: () => Promise<{ electricityCost?: string; printerPower?: string }>;
-  setSettings: (settings: { electricityCost: string; printerPower: string }) => Promise<void>;
+  getSettings: () => Promise<{ electricityCost?: string; printerPower?: string; desiccantNotificationInterval?: number }>;
+  setSettings: (settings: { electricityCost: string; printerPower: string; desiccantNotificationInterval: number }) => Promise<void>;
   generateCalibrationGCode: (options: {
     testModel: string;
     slicerSetting: string;
@@ -32,11 +32,13 @@ export interface IElectronAPI {
     endValue: string;
     stepValue: string;
   }) => Promise<string>;
+  gcodeCalculateFilamentUsage: (options: { filePath: string; filamentId: number }) => Promise<number>;
   login: () => Promise<{ name: string }>;
   logout: () => Promise<null>;
   getCommunityProfiles: () => Promise<any[]>;
   addCommunityProfile: (profile: any) => Promise<any>;
   rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }) => Promise<any>;
+  onError: (callback: (error: string) => void) => void;
 }
 
 declare global {

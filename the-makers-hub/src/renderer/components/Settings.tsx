@@ -3,18 +3,20 @@ import React, { useState, useEffect } from 'react';
 const Settings = () => {
   const [electricityCost, setElectricityCost] = useState('');
   const [printerPower, setPrinterPower] = useState('');
+  const [desiccantNotificationInterval, setDesiccantNotificationInterval] = useState(30);
 
   useEffect(() => {
     window.electron.getSettings().then((settings) => {
       if (settings) {
         setElectricityCost(settings.electricityCost || '');
         setPrinterPower(settings.printerPower || '');
+        setDesiccantNotificationInterval(settings.desiccantNotificationInterval || 30);
       }
     });
   }, []);
 
   const handleSave = () => {
-    window.electron.setSettings({ electricityCost, printerPower });
+    window.electron.setSettings({ electricityCost, printerPower, desiccantNotificationInterval });
   };
 
   const [user, setUser] = useState(null);
@@ -47,6 +49,14 @@ const Settings = () => {
             type="number"
             value={printerPower}
             onChange={(e) => setPrinterPower(e.target.value)}
+          />
+        </div>
+        <div>
+          <label>Desiccant Recharge Notification Interval (days)</label>
+          <input
+            type="number"
+            value={desiccantNotificationInterval}
+            onChange={(e) => setDesiccantNotificationInterval(parseInt(e.target.value))}
           />
         </div>
         <button type="button" onClick={handleSave}>Save Settings</button>

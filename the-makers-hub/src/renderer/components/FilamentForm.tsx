@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { FilamentSpool } from '../../db/models';
-import QRCodeScanner from './QRCodeScanner';
 
 interface Props {
   filament?: FilamentSpool;
@@ -13,11 +12,11 @@ interface Props {
     purchaseDate: Date;
     remainingWeight: number;
     density: number;
+    diameter: number;
   }) => void;
 }
 
 const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
-  const [showScanner, setShowScanner] = useState(false);
   const [manufacturer, setManufacturer] = useState('');
   const [materialType, setMaterialType] = useState('');
   const [color, setColor] = useState('');
@@ -26,6 +25,7 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
   const [purchaseDate, setPurchaseDate] = useState(new Date());
   const [remainingWeight, setRemainingWeight] = useState(1000);
   const [density, setDensity] = useState(1.24);
+  const [diameter, setDiameter] = useState(1.75);
 
   useEffect(() => {
     if (filament) {
@@ -37,6 +37,7 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
       setPurchaseDate(filament.purchaseDate);
       setRemainingWeight(filament.remainingWeight);
       setDensity(filament.density);
+      setDiameter(filament.diameter);
     }
   }, [filament]);
 
@@ -51,34 +52,12 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
       purchaseDate,
       remainingWeight,
       density,
+      diameter,
     });
-  };
-
-  const handleScan = (data: string | null) => {
-    if (data) {
-      try {
-        const scannedData = JSON.parse(data);
-        setManufacturer(scannedData.manufacturer || '');
-        setMaterialType(scannedData.materialType || '');
-        setColor(scannedData.color || '');
-        setSpoolWeight(scannedData.spoolWeight || 1000);
-        setPurchasePrice(scannedData.purchasePrice || 0);
-        setPurchaseDate(new Date(scannedData.purchaseDate) || new Date());
-        setRemainingWeight(scannedData.remainingWeight || 1000);
-        setDensity(scannedData.density || 1.24);
-      } catch (error) {
-        console.error('Failed to parse QR code data:', error);
-      }
-    }
-    setShowScanner(false);
   };
 
   return (
     <div>
-      <button type="button" onClick={() => setShowScanner(!showScanner)}>
-        {showScanner ? 'Close Scanner' : 'Scan QR Code'}
-      </button>
-      {showScanner && <QRCodeScanner onScan={handleScan} />}
       <form onSubmit={handleSubmit}>
         <input
           type="text"
@@ -134,6 +113,13 @@ const FilamentForm: React.FC<Props> = ({ filament, onSubmit }) => {
           placeholder="Density (g/cm³)"
           value={density}
           onChange={(e) => setDensity(parseFloat(e.target.value))}
+          required
+        />
+        <input
+          type="number"
+          placeholder="Diameter (mm)"
+          value={diameter}
+          onChange={(e) => setDiameter(parseFloat(e.target.value))}
           required
         />
         <button type="submit">{filament ? 'Update' : 'Add'} Filament</button>

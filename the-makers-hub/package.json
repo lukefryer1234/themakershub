@@ -49,7 +49,6 @@
     "pg-hstore": "^2.3.4",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-qr-reader": "^3.0.0-beta-1",
     "sequelize": "^6.37.7",
     "sqlite3": "^5.1.7",
     "stream-browserify": "^3.0.0",

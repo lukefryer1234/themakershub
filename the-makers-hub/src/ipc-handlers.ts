@@ -1,6 +1,7 @@
 import { ipcMain, Notification, dialog, app } from 'electron';
 import { FilamentSpool, DryBox, Printer, PrintFailureLog } from './db/models';
 import { Op } from 'sequelize';
+import { GCodeParser } from 'gcode-parser';
 import fs from 'fs';
 import path from 'path';
 
@@ -38,13 +39,37 @@ function deleteFiles(files: string[]) {
   });
 }
 
+function handleError(error: Error, window?: Electron.BrowserWindow) {
+  console.error(error);
+  if (window) {
+    window.webContents.send('error', error.message);
+  }
+}
+
 
 export function registerIpcHandlers() {
-  ipcMain.handle('filaments:get', async () => {
+  const settingsPath = path.join(app.getPath('userData'), 'settings.json');
+
+  const getNotificationInterval = () => {
+    if (fs.existsSync(settingsPath)) {
+      const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+      return settings.desiccantNotificationInterval || 30;
+    }
+    return 30;
+  };
+
+  // Call checkDesiccant on startup
+  checkDesiccant(getNotificationInterval());
+
+  // And then every 24 hours
+  setInterval(() => checkDesiccant(getNotificationInterval()), 1000 * 60 * 60 * 24);
+
+
+  ipcMain.handle('filaments:get', async (event) => {
     try {
       return await FilamentSpool.findAll();
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
       return [];
     }
   });
@@ -53,7 +78,7 @@ export function registerIpcHandlers() {
     try {
       return await FilamentSpool.create(filament);
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -61,7 +86,7 @@ export function registerIpcHandlers() {
     try {
       await FilamentSpool.update(filament, { where: { id: filament.id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -69,15 +94,15 @@ export function registerIpcHandlers() {
     try {
       await FilamentSpool.destroy({ where: { id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
-  ipcMain.handle('dryboxes:get', async () => {
+  ipcMain.handle('dryboxes:get', async (event) => {
     try {
       return await DryBox.findAll();
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
       return [];
     }
   });
@@ -86,7 +111,7 @@ export function registerIpcHandlers() {
     try {
       return await DryBox.create(dryBox);
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -94,7 +119,7 @@ export function registerIpcHandlers() {
     try {
       await DryBox.update(dryBox, { where: { id: dryBox.id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -102,7 +127,7 @@ export function registerIpcHandlers() {
     try {
       await DryBox.destroy({ where: { id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -118,20 +143,20 @@ export function registerIpcHandlers() {
         }).show();
       }
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
-  const checkDesiccant = async () => {
+  const checkDesiccant = async (notificationInterval = 30) => {
     try {
       const dryBoxes = await DryBox.findAll();
       dryBoxes.forEach((dryBox) => {
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        if (dryBox.lastRecharged < thirtyDaysAgo) {
+        const daysAgo = new Date();
+        daysAgo.setDate(daysAgo.getDate() - notificationInterval);
+        if (dryBox.lastRecharged < daysAgo) {
           new Notification({
             title: 'Recharge Desiccant',
-            body: `It has been over 30 days since you last recharged the desiccant in ${dryBox.name}.`,
+            body: `It has been over ${notificationInterval} days since you last recharged the desiccant in ${dryBox.name}.`,
           }).show();
         }
       });
@@ -140,13 +165,11 @@ export function registerIpcHandlers() {
     }
   };
 
-  setInterval(checkDesiccant, 1000 * 60 * 60 * 24); // Check once a day
-
-  ipcMain.handle('printers:get', async () => {
+  ipcMain.handle('printers:get', async (event) => {
     try {
       return await Printer.findAll();
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
       return [];
     }
   });
@@ -155,7 +178,7 @@ export function registerIpcHandlers() {
     try {
       return await Printer.create(printer);
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -163,7 +186,7 @@ export function registerIpcHandlers() {
     try {
       await Printer.update(printer, { where: { id: printer.id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -171,15 +194,15 @@ export function registerIpcHandlers() {
     try {
       await Printer.destroy({ where: { id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
-  ipcMain.handle('failure-logs:get', async () => {
+  ipcMain.handle('failure-logs:get', async (event) => {
     try {
       return await PrintFailureLog.findAll({ include: [Printer, FilamentSpool] });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
       return [];
     }
   });
@@ -191,9 +214,34 @@ export function registerIpcHandlers() {
       newLog.gcodeFile = saveFiles([log.gcodeFile])[0];
       newLog.stlFile = saveFiles([log.stlFile])[0];
 
+      if (newLog.gcodeFile && log.filamentId) {
+        const gcode = fs.readFileSync(newLog.gcodeFile, 'utf-8');
+        const parser = new GCodeParser(gcode);
+        const commands = parser.parse();
+
+        let filamentLength = 0;
+        commands.forEach((command) => {
+          if (command.command === 'G1' && command.params.E) {
+            filamentLength += command.params.E;
+          }
+        });
+
+        const filament = await FilamentSpool.findByPk(log.filamentId);
+        if (filament) {
+          const filamentRadius = filament.diameter / 2;
+          const filamentVolume = Math.PI * Math.pow(filamentRadius, 2) * filamentLength; // mm^3
+          const usedWeight = (filamentVolume / 1000) * filament.density; // g
+
+          filament.remainingWeight -= usedWeight;
+          await filament.save();
+
+          newLog.printCost = (usedWeight / filament.spoolWeight) * filament.purchasePrice;
+        }
+      }
+
       return await PrintFailureLog.create(newLog);
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -201,7 +249,7 @@ export function registerIpcHandlers() {
     try {
       await PrintFailureLog.update(log, { where: { id: log.id } });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -214,7 +262,7 @@ export function registerIpcHandlers() {
         await log.destroy();
       }
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -230,12 +278,12 @@ export function registerIpcHandlers() {
         include: [Printer, FilamentSpool],
       });
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
       return [];
     }
   });
 
-  ipcMain.handle('settings:get', async () => {
+  ipcMain.handle('settings:get', async (event) => {
     try {
       const settingsPath = path.join(app.getPath('userData'), 'settings.json');
       if (fs.existsSync(settingsPath)) {
@@ -244,7 +292,7 @@ export function registerIpcHandlers() {
       }
       return {};
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
       return {};
     }
   });
@@ -254,7 +302,7 @@ export function registerIpcHandlers() {
       const settingsPath = path.join(app.getPath('userData'), 'settings.json');
       fs.writeFileSync(settingsPath, JSON.stringify(settings));
     } catch (error) {
-      console.error(error);
+      handleError(error, event.sender);
     }
   });
 
@@ -272,6 +320,33 @@ M82 ; use absolute distances for extrusion
 G28 ; home all axes
 `;
     return gcode;
+  });
+
+  ipcMain.handle('gcode:calculate-filament-usage', async (event, { filePath, filamentId }) => {
+    try {
+      const gcode = fs.readFileSync(filePath, 'utf-8');
+      const parser = new GCodeParser(gcode);
+      const commands = parser.parse();
+
+      let filamentLength = 0;
+      commands.forEach((command) => {
+        if (command.command === 'G1' && command.params.E) {
+          filamentLength += command.params.E;
+        }
+      });
+
+      const filament = await FilamentSpool.findByPk(filamentId);
+      if (filament) {
+        const filamentRadius = filament.diameter / 2;
+        const filamentVolume = Math.PI * Math.pow(filamentRadius, 2) * filamentLength; // mm^3
+        const usedWeight = (filamentVolume / 1000) * filament.density; // g
+        return usedWeight;
+      }
+      return 0;
+    } catch (error) {
+      console.error(error);
+      return 0;
+    }
   });
 
   ipcMain.handle('user:login', async () => {

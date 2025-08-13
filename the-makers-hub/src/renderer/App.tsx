@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import FilamentManager from './components/FilamentManager';
 import DesiccantTracker from './components/DesiccantTracker';
 import PrinterManager from './components/PrinterManager';
@@ -8,6 +8,12 @@ import Shop from './components/Shop';
 import Tabs from './components/Tabs';
 
 const App = () => {
+  useEffect(() => {
+    window.electron.onError((error) => {
+      alert(`An error occurred: ${error}`);
+    });
+  }, []);
+
   const tabs = [
     { label: 'Filament Inventory', content: <FilamentManager /> },
     { label: 'Desiccant Tracker', content: <DesiccantTracker /> },

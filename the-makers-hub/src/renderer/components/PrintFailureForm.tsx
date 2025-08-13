@@ -28,6 +28,8 @@ const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit 
   const [stlFile, setStlFile] = useState<string | null>(null);
   const [suspectedCauseAndNotes, setSuspectedCauseAndNotes] = useState('');
   const [slicerSettings, setSlicerSettings] = useState<Record<string, string>>({});
+  const [filamentUsage, setFilamentUsage] = useState<number | null>(null);
+  const [printCost, setPrintCost] = useState<number | null>(null);
 
   useEffect(() => {
     if (log) {
@@ -38,6 +40,7 @@ const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit 
       setStlFile(log.stlFile || null);
       setSuspectedCauseAndNotes(log.suspectedCauseAndNotes || '');
       setSlicerSettings(log.slicerSettings || {});
+      setPrintCost(log.printCost || null);
     }
   }, [log]);
 
@@ -49,9 +52,14 @@ const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit 
     setSlicerSettings({ ...slicerSettings, '': '' });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (path: string) => void) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, setter: (path: string) => void) => {
     if (e.target.files && e.target.files.length > 0) {
-      setter(e.target.files[0].name);
+      const filePath = e.target.files[0].path;
+      setter(filePath);
+      if (setter === setGcodeFile && filamentId) {
+        const usage = await window.electron.gcodeCalculateFilamentUsage({ filePath, filamentId });
+        setFilamentUsage(usage);
+      }
     }
   };
 
@@ -96,6 +104,8 @@ const PrintFailureForm: React.FC<Props> = ({ log, printers, filaments, onSubmit 
       {/* File Attachments */}
       <label>Photos: <input type="file" multiple onChange={(e) => handleMultipleFileChange(e, setPhotos)} /></label>
       <label>.gcode File: <input type="file" onChange={(e) => handleFileChange(e, setGcodeFile)} /></label>
+      {filamentUsage && <span>Estimated filament usage: {filamentUsage.toFixed(2)}g</span>}
+      {printCost && <span>Estimated print cost: ${printCost.toFixed(2)}</span>}
       <label>.stl File: <input type="file" onChange={(e) => handleFileChange(e, setStlFile)} /></label>
 
       {/* Notes */}
