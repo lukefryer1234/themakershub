@@ -306,20 +306,41 @@ export function registerIpcHandlers() {
     }
   });
 
-  ipcMain.handle('gcode:generate-calibration', async (event, { testModel, slicerSetting, startValue, endValue, stepValue }) => {
-    // This is a placeholder for the G-code generation logic.
-    // In a real application, this would involve a more complex process
-    // of selecting a template G-code file and modifying it based on the
-    // provided parameters.
-    const gcode = `; G-code generated for ${testModel}
-; Slicer Setting: ${slicerSetting}
-; Start: ${startValue}, End: ${endValue}, Step: ${stepValue}
-G21 ; set units to millimeters
-G90 ; use absolute positioning
-M82 ; use absolute distances for extrusion
-G28 ; home all axes
-`;
-    return gcode;
+  ipcMain.handle('gcode:generate-calibration', async (event, { gcodeFile, slicerSetting, startValue, endValue, stepValue }) => {
+    try {
+      const gcode = fs.readFileSync(gcodeFile, 'utf-8');
+      const lines = gcode.split('\n');
+      const newLines = [];
+      let layer = 0;
+      let lastZ = -999;
+
+      for (const line of lines) {
+        newLines.push(line);
+        if (line.startsWith('G1') || line.startsWith('G0')) {
+          const zMatch = line.match(/Z([\d.]+)/);
+          if (zMatch) {
+            const z = parseFloat(zMatch[1]);
+            if (z > lastZ) {
+              lastZ = z;
+              layer++;
+              const currentValue = parseInt(startValue) + (layer * parseInt(stepValue));
+              if (currentValue <= parseInt(endValue)) {
+                if (slicerSetting === 'temperature') {
+                  newLines.push(`M104 S${currentValue}`);
+                } else if (slicerSetting === 'retraction-distance') {
+                  // M207 sets retraction distance
+                  newLines.push(`M207 S${currentValue}`);
+                }
+              }
+            }
+          }
+        }
+      }
+      return newLines.join('\n');
+    } catch (error) {
+      handleError(error, event.sender);
+      return '';
+    }
   });
 
   ipcMain.handle('gcode:calculate-filament-usage', async (event, { filePath, filamentId }) => {
@@ -346,6 +367,21 @@ G28 ; home all axes
     } catch (error) {
       console.error(error);
       return 0;
+    }
+  });
+
+  ipcMain.handle('gcode:save', async (event, gcode) => {
+    try {
+      const { filePath } = await dialog.showSaveDialog({
+        title: 'Save G-code File',
+        defaultPath: 'modified.gcode',
+        filters: [{ name: 'G-code', extensions: ['gcode'] }],
+      });
+      if (filePath) {
+        fs.writeFileSync(filePath, gcode);
+      }
+    } catch (error) {
+      handleError(error, event.sender);
     }
   });
 

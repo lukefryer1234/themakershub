@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 
 const CalibrationLab = () => {
-  const [testModel, setTestModel] = useState('');
+  const [gcodeFile, setGcodeFile] = useState<string | null>(null);
   const [slicerSetting, setSlicerSetting] = useState('');
   const [startValue, setStartValue] = useState('');
   const [endValue, setEndValue] = useState('');
@@ -10,8 +10,12 @@ const CalibrationLab = () => {
   const [generatedGCode, setGeneratedGCode] = useState('');
 
   const handleGenerate = async () => {
+    if (!gcodeFile) {
+      alert('Please select a G-code file.');
+      return;
+    }
     const gcode = await window.electron.generateCalibrationGCode({
-      testModel,
+      gcodeFile,
       slicerSetting,
       startValue,
       endValue,
@@ -20,18 +24,26 @@ const CalibrationLab = () => {
     setGeneratedGCode(gcode);
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setGcodeFile(e.target.files[0].path);
+    }
+  };
+
+  const handleSave = async () => {
+    if (generatedGCode) {
+      await window.electron.saveGCode(generatedGCode);
+      alert('G-code saved successfully!');
+    }
+  };
+
   return (
     <div>
       <h2>Slicer Profile A/B Tester (Calibration Lab)</h2>
       <form>
         <div>
-          <label>Test Model</label>
-          <select value={testModel} onChange={(e) => setTestModel(e.target.value)}>
-            <option value="">Select a test model</option>
-            <option value="temperature-tower">Temperature Tower</option>
-            <option value="retraction-test">Retraction Test</option>
-            <option value="bridging-test">Bridging Test</option>
-          </select>
+          <label>G-code File</label>
+          <input type="file" onChange={handleFileChange} />
         </div>
         <div>
           <label>Slicer Setting</label>
@@ -59,6 +71,7 @@ const CalibrationLab = () => {
         <div>
           <h3>Generated G-Code</h3>
           <textarea value={generatedGCode} readOnly rows={20} style={{ width: '100%' }} />
+          <button type="button" onClick={handleSave}>Save G-Code</button>
         </div>
       )}
     </div>

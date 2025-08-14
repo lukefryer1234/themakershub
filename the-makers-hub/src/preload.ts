@@ -61,4 +61,5 @@ contextBridge.exposeInMainWorld('electron', {
   addCommunityProfile: (profile: any): Promise<any> => ipcRenderer.invoke('community-profiles:add', profile),
   rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }): Promise<any> => ipcRenderer.invoke('community-profiles:rate', options),
   onError: (callback: (error: string) => void) => ipcRenderer.on('error', (event, error) => callback(error)),
+  saveGCode: (gcode: string): Promise<void> => ipcRenderer.invoke('gcode:save', gcode),
 });

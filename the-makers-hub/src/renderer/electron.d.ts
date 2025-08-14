@@ -39,6 +39,7 @@ export interface IElectronAPI {
   addCommunityProfile: (profile: any) => Promise<any>;
   rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }) => Promise<any>;
   onError: (callback: (error: string) => void) => void;
+  saveGCode: (gcode: string) => Promise<void>;
 }
 
 declare global {
