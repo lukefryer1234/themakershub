@@ -1,0 +1,124 @@
+import React, { useState, useEffect } from 'react';
+import { PrintLog, Printer, FilamentSpool } from '../../db/models';
+
+interface Props {
+  log?: PrintLog;
+  printers: Printer[];
+  filaments: FilamentSpool[];
+  onSubmit: (log: {
+    title: string;
+    date: Date;
+    photos: string[];
+    gcodeFile: string;
+    stlFile: string;
+    slicerSettings: Record<string, string>;
+    PrinterId: number;
+    FilamentId: number;
+  }) => void;
+}
+
+const PrintLogForm: React.FC<Props> = ({ log, printers, filaments, onSubmit }) => {
+  const [title, setTitle] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [printerId, setPrinterId] = useState<number | null>(null);
+  const [filamentId, setFilamentId] = useState<number | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [gcodeFile, setGcodeFile] = useState<string | null>(null);
+  const [stlFile, setStlFile] = useState<string | null>(null);
+  const [slicerSettings, setSlicerSettings] = useState<Record<string, string>>({});
+  const [filamentUsage, setFilamentUsage] = useState<number | null>(null);
+  const [printCost, setPrintCost] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (log) {
+      setTitle(log.title);
+      setDate(log.date);
+      setPhotos(log.photos || []);
+      setGcodeFile(log.gcodeFile || null);
+      setStlFile(log.stlFile || null);
+      setSlicerSettings(log.slicerSettings || {});
+      setPrintCost(log.printCost || null);
+    }
+  }, [log]);
+
+  const handleSlicerSettingChange = (key: string, value: string) => {
+    setSlicerSettings({ ...slicerSettings, [key]: value });
+  };
+
+  const handleAddSlicerSetting = () => {
+    setSlicerSettings({ ...slicerSettings, '': '' });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, setter: (path: string) => void) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filePath = e.target.files[0].path;
+      setter(filePath);
+      if (setter === setGcodeFile && filamentId) {
+        const usage = await window.electron.gcodeCalculateFilamentUsage({ filePath, filamentId });
+        setFilamentUsage(usage);
+      }
+    }
+  };
+
+  const handleMultipleFileChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (paths: string[]) => void) => {
+    if (e.target.files) {
+      const paths = Array.from(e.target.files).map((file) => file.name);
+      setter(paths);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit({
+      title,
+      date,
+      photos,
+      gcodeFile,
+      stlFile,
+      slicerSettings,
+      PrinterId: printerId,
+      FilamentId: filamentId,
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Basic Info */}
+      <input type="text" placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+      <input type="date" value={date.toISOString().split('T')[0]} onChange={(e) => setDate(new Date(e.target.value))} required />
+
+      {/* Associations */}
+      <select value={printerId || ''} onChange={(e) => setPrinterId(parseInt(e.target.value))} required>
+        <option value="" disabled>Select a printer</option>
+        {printers.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+      </select>
+      <select value={filamentId || ''} onChange={(e) => setFilamentId(parseInt(e.target.value))} required>
+        <option value="" disabled>Select a filament</option>
+        {filaments.map((f) => (<option key={f.id} value={f.id}>{f.manufacturer} {f.materialType}</option>))}
+      </select>
+
+      {/* File Attachments */}
+      <label>Photos: <input type="file" multiple onChange={(e) => handleMultipleFileChange(e, setPhotos)} /></label>
+      <label>.gcode File: <input type="file" onChange={(e) => handleFileChange(e, setGcodeFile)} /></label>
+      {filamentUsage && <span>Estimated filament usage: {filamentUsage.toFixed(2)}g</span>}
+      {printCost && <span>Estimated print cost: ${printCost.toFixed(2)}</span>}
+      <label>.stl File: <input type="file" onChange={(e) => handleFileChange(e, setStlFile)} /></label>
+
+      {/* Slicer Settings */}
+      <div>
+        <h3>Slicer Settings</h3>
+        {Object.entries(slicerSettings).map(([key, value]) => (
+          <div key={key}>
+            <input type="text" placeholder="Setting Name" value={key} onChange={(e) => { const newKey = e.target.value; setSlicerSettings(prev => { const { [key]: _, ...rest } = prev; return { ...rest, [newKey]: value }; }); }} />
+            <input type="text" placeholder="Value" value={value} onChange={(e) => handleSlicerSettingChange(key, e.target.value)} />
+          </div>
+        ))}
+        <button type="button" onClick={handleAddSlicerSetting}>Add Setting</button>
+      </div>
+
+      <button type="submit">{log ? 'Update' : 'Add'} Log</button>
+    </form>
+  );
+};
+
+export default PrintLogForm;

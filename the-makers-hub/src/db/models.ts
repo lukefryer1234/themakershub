@@ -125,6 +125,63 @@ Printer.init(
   }
 );
 
+// PrintLog Model
+export class PrintLog extends Model {
+  public id!: number;
+  public title!: string;
+  public date!: Date;
+  public photos!: string[];
+  public gcodeFile!: string;
+  public stlFile!: string;
+  public slicerSettings!: Record<string, string>;
+  public printCost!: number;
+  public Printer?: Printer;
+  public FilamentSpool?: FilamentSpool;
+}
+
+PrintLog.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    date: {
+      type: DataTypes.DATE,
+      allowNull: false,
+    },
+    photos: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    gcodeFile: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    stlFile: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    slicerSettings: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+    printCost: {
+      type: DataTypes.FLOAT,
+      allowNull: true,
+    },
+  },
+  {
+    sequelize,
+    tableName: 'print_logs',
+  }
+);
+
+
 // PrintFailureLog Model
 export class PrintFailureLog extends Model {
   public id!: number;
@@ -187,6 +244,8 @@ PrintFailureLog.init(
 );
 
 // Associations
+PrintLog.belongsTo(Printer, { foreignKey: 'printerId' });
+PrintLog.belongsTo(FilamentSpool, { foreignKey: 'filamentId' });
 PrintFailureLog.belongsTo(Printer, { foreignKey: 'printerId' });
 PrintFailureLog.belongsTo(FilamentSpool, { foreignKey: 'filamentId' });
 

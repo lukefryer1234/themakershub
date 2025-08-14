@@ -1,5 +1,5 @@
 import { ipcMain, Notification, dialog, app } from 'electron';
-import { FilamentSpool, DryBox, Printer, PrintFailureLog } from './db/models';
+import { FilamentSpool, DryBox, Printer, PrintFailureLog, PrintLog } from './db/models';
 import { Op } from 'sequelize';
 import { GCodeParser } from 'gcode-parser';
 import fs from 'fs';
@@ -193,6 +193,74 @@ export function registerIpcHandlers() {
   ipcMain.handle('printers:delete', async (event, id) => {
     try {
       await Printer.destroy({ where: { id } });
+    } catch (error) {
+      handleError(error, event.sender);
+    }
+  });
+
+  ipcMain.handle('print-logs:get', async (event) => {
+    try {
+      return await PrintLog.findAll({ include: [Printer, FilamentSpool] });
+    } catch (error) {
+      handleError(error, event.sender);
+      return [];
+    }
+  });
+
+  ipcMain.handle('print-logs:add', async (event, log) => {
+    try {
+      const newLog = { ...log };
+      newLog.photos = saveFiles(log.photos);
+      newLog.gcodeFile = saveFiles([log.gcodeFile])[0];
+      newLog.stlFile = saveFiles([log.stlFile])[0];
+
+      if (newLog.gcodeFile && log.filamentId) {
+        const gcode = fs.readFileSync(newLog.gcodeFile, 'utf-8');
+        const parser = new GCodeParser(gcode);
+        const commands = parser.parse();
+
+        let filamentLength = 0;
+        commands.forEach((command) => {
+          if (command.command === 'G1' && command.params.E) {
+            filamentLength += command.params.E;
+          }
+        });
+
+        const filament = await FilamentSpool.findByPk(log.filamentId);
+        if (filament) {
+          const filamentRadius = filament.diameter / 2;
+          const filamentVolume = Math.PI * Math.pow(filamentRadius, 2) * filamentLength; // mm^3
+          const usedWeight = (filamentVolume / 1000) * filament.density; // g
+
+          filament.remainingWeight -= usedWeight;
+          await filament.save();
+
+          newLog.printCost = (usedWeight / filament.spoolWeight) * filament.purchasePrice;
+        }
+      }
+
+      return await PrintLog.create(newLog);
+    } catch (error) {
+      handleError(error, event.sender);
+    }
+  });
+
+  ipcMain.handle('print-logs:update', async (event, log) => {
+    try {
+      await PrintLog.update(log, { where: { id: log.id } });
+    } catch (error) {
+      handleError(error, event.sender);
+    }
+  });
+
+  ipcMain.handle('print-logs:delete', async (event, id) => {
+    try {
+      const log = await PrintLog.findByPk(id);
+      if (log) {
+        deleteFiles(log.photos);
+        deleteFiles([log.gcodeFile, log.stlFile]);
+        await log.destroy();
+      }
     } catch (error) {
       handleError(error, event.sender);
     }

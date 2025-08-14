@@ -1,4 +1,4 @@
-import { FilamentSpool, DryBox, Printer, PrintFailureLog } from '../db/models';
+import { FilamentSpool, DryBox, Printer, PrintFailureLog, PrintLog } from '../db/models';
 
 export interface IElectronAPI {
   getFilaments: () => Promise<FilamentSpool[]>;
@@ -16,6 +16,11 @@ export interface IElectronAPI {
   addPrinter: (printer: Omit<Printer, 'id'>) => Promise<Printer>;
   updatePrinter: (printer: Printer) => Promise<void>;
   deletePrinter: (id: number) => Promise<void>;
+
+  getPrintLogs: () => Promise<PrintLog[]>;
+  addPrintLog: (log: Omit<PrintLog, 'id'>) => Promise<PrintLog>;
+  updatePrintLog: (log: PrintLog) => Promise<void>;
+  deletePrintLog: (id: number) => Promise<void>;
 
   getFailureLogs: () => Promise<PrintFailureLog[]>;
   addFailureLog: (log: Omit<PrintFailureLog, 'id'>) => Promise<PrintFailureLog>;

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { FilamentSpool, DryBox, Printer, PrintFailureLog } from './db/models';
+import { FilamentSpool, DryBox, Printer, PrintFailureLog, PrintLog } from './db/models';
 
 contextBridge.exposeInMainWorld('electron', {
   getFilaments: (): Promise<FilamentSpool[]> => ipcRenderer.invoke('filaments:get'),
@@ -27,6 +27,14 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('printers:update', printer),
   deletePrinter: (id: number): Promise<void> =>
     ipcRenderer.invoke('printers:delete', id),
+
+  getPrintLogs: (): Promise<PrintLog[]> => ipcRenderer.invoke('print-logs:get'),
+  addPrintLog: (log: Omit<PrintLog, 'id'>): Promise<PrintLog> =>
+    ipcRenderer.invoke('print-logs:add', log),
+  updatePrintLog: (log: PrintLog): Promise<void> =>
+    ipcRenderer.invoke('print-logs:update', log),
+  deletePrintLog: (id: number): Promise<void> =>
+    ipcRenderer.invoke('print-logs:delete', id),
 
   getFailureLogs: (): Promise<PrintFailureLog[]> => ipcRenderer.invoke('failure-logs:get'),
   addFailureLog: (log: Omit<PrintFailureLog, 'id'>): Promise<PrintFailureLog> =>
