@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import Dashboard from './components/Dashboard';
 import FilamentManager from './components/FilamentManager';
 import DesiccantTracker from './components/DesiccantTracker';
 import PrinterManager from './components/PrinterManager';
@@ -16,6 +17,7 @@ const App = () => {
   }, []);
 
   const tabs = [
+    { label: 'Dashboard', content: <Dashboard /> },
     { label: 'Filament Inventory', content: <FilamentManager /> },
     { label: 'Desiccant Tracker', content: <DesiccantTracker /> },
     { label: 'Printer Manager', content: <PrinterManager /> },

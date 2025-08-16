@@ -477,4 +477,33 @@ export function registerIpcHandlers() {
     // This is a placeholder for the logic to rate a profile in a public database.
     return { id, rating };
   });
+
+  ipcMain.handle('dashboard:stats', async (event) => {
+    try {
+      const successfulPrints = await PrintLog.count();
+      const failedPrints = await PrintFailureLog.count();
+
+      const allPrints = [
+        ...(await PrintLog.findAll()),
+        ...(await PrintFailureLog.findAll()),
+      ];
+
+      const totalCost = allPrints.reduce((acc, log) => acc + (log.printCost || 0), 0);
+
+      const filaments = await FilamentSpool.findAll();
+      const lowFilaments = filaments.filter(
+        (f) => (f.remainingWeight / f.spoolWeight) * 100 < 10
+      );
+
+      return {
+        successfulPrints,
+        failedPrints,
+        totalCost,
+        lowFilaments,
+      };
+    } catch (error) {
+      handleError(error, event.sender);
+      return {};
+    }
+  });
 }

@@ -45,6 +45,12 @@ export interface IElectronAPI {
   rateCommunityProfile: (options: { id: number; rating: 'up' | 'down' }) => Promise<any>;
   onError: (callback: (error: string) => void) => void;
   saveGCode: (gcode: string) => Promise<void>;
+  getDashboardStats: () => Promise<{
+    successfulPrints: number;
+    failedPrints: number;
+    totalCost: number;
+    lowFilaments: FilamentSpool[];
+  }>;
 }
 
 declare global {
