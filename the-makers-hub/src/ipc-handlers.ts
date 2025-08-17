@@ -46,6 +46,58 @@ function handleError(error: Error, window?: Electron.BrowserWindow) {
   }
 }
 
+function createCrudHandlers<T extends { id: number }>(
+  model: any,
+  channel: string,
+  options?: {
+    add?: (event: Electron.IpcMainInvokeEvent, item: any) => Promise<any>;
+    delete?: (event: Electron.IpcMainInvokeEvent, id: number) => Promise<void>;
+    get?: (event: Electron.IpcMainInvokeEvent) => Promise<any[]>;
+  }
+) {
+  ipcMain.handle(`${channel}:get`, async (event) => {
+    try {
+      if (options?.get) {
+        return await options.get(event);
+      }
+      return await model.findAll();
+    } catch (error) {
+      handleError(error, event.sender);
+      return [];
+    }
+  });
+
+  ipcMain.handle(`${channel}:add`, async (event, item) => {
+    try {
+      if (options?.add) {
+        return await options.add(event, item);
+      }
+      return await model.create(item);
+    } catch (error) {
+      handleError(error, event.sender);
+    }
+  });
+
+  ipcMain.handle(`${channel}:update`, async (event, item: T) => {
+    try {
+      await model.update(item, { where: { id: item.id } });
+    } catch (error) {
+      handleError(error, event.sender);
+    }
+  });
+
+  ipcMain.handle(`${channel}:delete`, async (event, id: number) => {
+    try {
+      if (options?.delete) {
+        return await options.delete(event, id);
+      }
+      await model.destroy({ where: { id } });
+    } catch (error) {
+      handleError(error, event.sender);
+    }
+  });
+}
+
 
 export function registerIpcHandlers() {
   const settingsPath = path.join(app.getPath('userData'), 'settings.json');
@@ -64,71 +116,128 @@ export function registerIpcHandlers() {
   // And then every 24 hours
   setInterval(() => checkDesiccant(getNotificationInterval()), 1000 * 60 * 60 * 24);
 
+  createCrudHandlers(FilamentSpool, 'filaments');
+  createCrudHandlers(DryBox, 'dryboxes');
+  createCrudHandlers(Printer, 'printers');
 
-  ipcMain.handle('filaments:get', async (event) => {
-    try {
-      return await FilamentSpool.findAll();
-    } catch (error) {
-      handleError(error, event.sender);
-      return [];
-    }
+  createCrudHandlers(PrintLog, 'print-logs', {
+    get: async (event) => {
+      try {
+        return await PrintLog.findAll({ include: [Printer, FilamentSpool] });
+      } catch (error) {
+        handleError(error, event.sender);
+        return [];
+      }
+    },
+    add: async (event, log) => {
+      try {
+        const newLog = { ...log };
+        newLog.photos = saveFiles(log.photos);
+        newLog.gcodeFile = saveFiles([log.gcodeFile])[0];
+        newLog.stlFile = saveFiles([log.stlFile])[0];
+
+        if (newLog.gcodeFile && log.filamentId) {
+          const gcode = fs.readFileSync(newLog.gcodeFile, 'utf-8');
+          const parser = new GCodeParser(gcode);
+          const commands = parser.parse();
+
+          let filamentLength = 0;
+          commands.forEach((command) => {
+            if (command.command === 'G1' && command.params.E) {
+              filamentLength += command.params.E;
+            }
+          });
+
+          const filament = await FilamentSpool.findByPk(log.filamentId);
+          if (filament) {
+            const filamentRadius = filament.diameter / 2;
+            const filamentVolume = Math.PI * Math.pow(filamentRadius, 2) * filamentLength; // mm^3
+            const usedWeight = (filamentVolume / 1000) * filament.density; // g
+
+            filament.remainingWeight -= usedWeight;
+            await filament.save();
+
+            newLog.printCost = (usedWeight / filament.spoolWeight) * filament.purchasePrice;
+          }
+        }
+
+        return await PrintLog.create(newLog);
+      } catch (error) {
+        handleError(error, event.sender);
+      }
+    },
+    delete: async (event, id) => {
+      try {
+        const log = await PrintLog.findByPk(id);
+        if (log) {
+          deleteFiles(log.photos);
+          deleteFiles([log.gcodeFile, log.stlFile]);
+          await log.destroy();
+        }
+      } catch (error) {
+        handleError(error, event.sender);
+      }
+    },
   });
 
-  ipcMain.handle('filaments:add', async (event, filament) => {
-    try {
-      return await FilamentSpool.create(filament);
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
+  createCrudHandlers(PrintFailureLog, 'failure-logs', {
+    get: async (event) => {
+      try {
+        return await PrintFailureLog.findAll({ include: [Printer, FilamentSpool] });
+      } catch (error) {
+        handleError(error, event.sender);
+        return [];
+      }
+    },
+    add: async (event, log) => {
+      try {
+        const newLog = { ...log };
+        newLog.photos = saveFiles(log.photos);
+        newLog.gcodeFile = saveFiles([log.gcodeFile])[0];
+        newLog.stlFile = saveFiles([log.stlFile])[0];
 
-  ipcMain.handle('filaments:update', async (event, filament) => {
-    try {
-      await FilamentSpool.update(filament, { where: { id: filament.id } });
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
+        if (newLog.gcodeFile && log.filamentId) {
+          const gcode = fs.readFileSync(newLog.gcodeFile, 'utf-8');
+          const parser = new GCodeParser(gcode);
+          const commands = parser.parse();
 
-  ipcMain.handle('filaments:delete', async (event, id) => {
-    try {
-      await FilamentSpool.destroy({ where: { id } });
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
+          let filamentLength = 0;
+          commands.forEach((command) => {
+            if (command.command === 'G1' && command.params.E) {
+              filamentLength += command.params.E;
+            }
+          });
 
-  ipcMain.handle('dryboxes:get', async (event) => {
-    try {
-      return await DryBox.findAll();
-    } catch (error) {
-      handleError(error, event.sender);
-      return [];
-    }
-  });
+          const filament = await FilamentSpool.findByPk(log.filamentId);
+          if (filament) {
+            const filamentRadius = filament.diameter / 2;
+            const filamentVolume = Math.PI * Math.pow(filamentRadius, 2) * filamentLength; // mm^3
+            const usedWeight = (filamentVolume / 1000) * filament.density; // g
 
-  ipcMain.handle('dryboxes:add', async (event, dryBox) => {
-    try {
-      return await DryBox.create(dryBox);
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
+            filament.remainingWeight -= usedWeight;
+            await filament.save();
 
-  ipcMain.handle('dryboxes:update', async (event, dryBox) => {
-    try {
-      await DryBox.update(dryBox, { where: { id: dryBox.id } });
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
+            newLog.printCost = (usedWeight / filament.spoolWeight) * filament.purchasePrice;
+          }
+        }
 
-  ipcMain.handle('dryboxes:delete', async (event, id) => {
-    try {
-      await DryBox.destroy({ where: { id } });
-    } catch (error) {
-      handleError(error, event.sender);
-    }
+        return await PrintFailureLog.create(newLog);
+      } catch (error) {
+        handleError(error, event.sender);
+      }
+    },
+    delete: async (event, id) => {
+      try {
+        const log = await PrintFailureLog.findByPk(id);
+        if (log) {
+          deleteFiles(log.photos);
+          deleteFiles([log.gcodeFile, log.stlFile]);
+          await log.destroy();
+        }
+      } catch (error) {
+        handleError(error, event.sender);
+      }
+    },
   });
 
   ipcMain.handle('dryboxes:recharge', async (event, id) => {
@@ -164,39 +273,6 @@ export function registerIpcHandlers() {
       console.error(error);
     }
   };
-
-  ipcMain.handle('printers:get', async (event) => {
-    try {
-      return await Printer.findAll();
-    } catch (error) {
-      handleError(error, event.sender);
-      return [];
-    }
-  });
-
-  ipcMain.handle('printers:add', async (event, printer) => {
-    try {
-      return await Printer.create(printer);
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
-
-  ipcMain.handle('printers:update', async (event, printer) => {
-    try {
-      await Printer.update(printer, { where: { id: printer.id } });
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
-
-  ipcMain.handle('printers:delete', async (event, id) => {
-    try {
-      await Printer.destroy({ where: { id } });
-    } catch (error) {
-      handleError(error, event.sender);
-    }
-  });
 
   ipcMain.handle('print-logs:get', async (event) => {
     try {
